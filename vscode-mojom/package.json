@@ -12,10 +12,10 @@
     "Chromium",
     "Mojom"
   ],
-  "publisher": "Google",
+  "publisher": "danh42",
   "repository": {
     "type": "git",
-    "url": "https://github.com/GoogleChromeLabs/mojom-language-support/vscode-mojom"
+    "url": "https://github.com/dharrington/mojom-language-support/tree/main/vscode-mojom"
   },
   "engines": {
     "vscode": "^1.34.0"
