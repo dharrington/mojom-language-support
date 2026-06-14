@@ -29,6 +29,8 @@ pub enum Traversal<'a> {
     Enum(&'a Enum),
     Const(&'a Const),
     StructField(&'a StructField),
+    EnterFeature(&'a Feature),
+    LeaveFeature(&'a Feature),
 }
 
 enum Node<'a> {
@@ -85,6 +87,7 @@ impl NonLeaf for MojomFile {
             Statement::Union(u) => Node::Leaf(u),
             Statement::Enum(e) => Node::Leaf(e),
             Statement::Const(c) => Node::Leaf(c),
+            Statement::Feature(f) => Node::NonLeaf(f),
         };
         Some(node)
     }
@@ -131,6 +134,23 @@ impl NonLeaf for Struct {
             StructBody::Field(f) => Node::Leaf(f),
         };
         Some(node)
+    }
+}
+
+impl NonLeaf for Feature {
+    fn enter(&self) -> Traversal {
+        Traversal::EnterFeature(self)
+    }
+
+    fn leave(&self) -> Traversal {
+        Traversal::LeaveFeature(self)
+    }
+
+    fn visit_child(&self, pos: usize) -> Option<Node> {
+        if pos >= self.consts.len() {
+            return None;
+        }
+        Some(Node::Leaf(&self.consts[pos]))
     }
 }
 

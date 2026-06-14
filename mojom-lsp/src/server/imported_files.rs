@@ -154,6 +154,14 @@ fn parse_imported<P: AsRef<Path>>(path: P) -> ImportResult {
             Traversal::LeaveStruct(_) => {
                 path.pop();
             }
+            Traversal::EnterFeature(node) => {
+                add_definition(&node.name, &ast, &mut path, &mut definitions);
+                let name = ast.text(&node.name);
+                path.push(name);
+            }
+            Traversal::LeaveFeature(_) => {
+                path.pop();
+            }
             Traversal::Union(node) => add_definition(&node.name, &ast, &mut path, &mut definitions),
             Traversal::Enum(node) => add_definition(&node.name, &ast, &mut path, &mut definitions),
             Traversal::Const(node) => add_definition(&node.name, &ast, &mut path, &mut definitions),

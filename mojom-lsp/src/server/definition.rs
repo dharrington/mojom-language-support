@@ -67,6 +67,16 @@ pub(crate) fn find_definition_preorder(ident: &str, ast: &MojomAst) -> Option<Lo
                 path.pop();
                 None
             }
+            Traversal::EnterFeature(node) => {
+                let loc = match_field(ident, &node.name, ast, &mut path);
+                let name = ast.text(&node.name);
+                path.push(name);
+                loc
+            }
+            Traversal::LeaveFeature(_) => {
+                path.pop();
+                None
+            }
             Traversal::Union(node) => match_field(ident, &node.name, ast, &mut path),
             Traversal::Enum(node) => match_field(ident, &node.name, ast, &mut path),
             Traversal::Const(node) => match_field(ident, &node.name, ast, &mut path),

@@ -247,6 +247,33 @@ fn into_struct(mut pairs: Pairs) -> Struct {
 }
 
 #[derive(Debug, PartialEq)]
+pub struct Feature {
+    pub name: Range,
+    pub consts: Vec<Const>,
+}
+
+fn into_feature(mut pairs: Pairs) -> Feature {
+    skip_attribute_list(&mut pairs);
+    consume_token(Rule::t_feature, &mut pairs);
+    let name = consume_as_range(&mut pairs);
+    consume_token(Rule::t_lbrace, &mut pairs);
+    let mut consts = Vec::new();
+    loop {
+        let item = pairs.next().unwrap();
+        match item.as_rule() {
+            Rule::const_stmt => consts.push(into_const(item.into_inner())),
+            Rule::t_rbrace => break,
+            _ => unreachable!(),
+        }
+    }
+    consume_semicolon(&mut pairs);
+    Feature {
+        name: name,
+        consts: consts,
+    }
+}
+
+#[derive(Debug, PartialEq)]
 pub struct UnionField {
     pub typ: Range,
     pub name: Range,
@@ -334,14 +361,37 @@ fn parameter_list(mut pairs: Pairs) -> Vec<Parameter> {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct Response {
-    pub params: Vec<Parameter>,
+pub enum Response {
+    Params(Vec<Parameter>),
+    Result {
+        success_type: Range,
+        error_type: Range,
+    },
 }
 
 fn into_response(mut pairs: Pairs) -> Response {
     consume_token(Rule::t_arrow, &mut pairs);
-    let params = parameter_list(pairs.next().unwrap().into_inner());
-    Response { params: params }
+    let item = pairs.next().unwrap();
+    match item.as_rule() {
+        Rule::parameter_list => {
+            let params = parameter_list(item.into_inner());
+            Response::Params(params)
+        }
+        Rule::result_response => {
+            let mut inner = item.into_inner();
+            consume_token(Rule::t_result, &mut inner);
+            consume_token(Rule::t_langlebracket, &mut inner);
+            let success_type = consume_as_range(&mut inner);
+            consume_token(Rule::t_comma, &mut inner);
+            let error_type = consume_as_range(&mut inner);
+            consume_token(Rule::t_ranglebracket, &mut inner);
+            Response::Result {
+                success_type,
+                error_type,
+            }
+        }
+        _ => unreachable!(),
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -433,6 +483,7 @@ pub enum Statement {
     Union(Union),
     Enum(Enum),
     Const(Const),
+    Feature(Feature),
 }
 
 fn into_statement(mut pairs: Pairs) -> Statement {
@@ -445,6 +496,7 @@ fn into_statement(mut pairs: Pairs) -> Statement {
         Rule::union_stmt => Statement::Union(into_union(stmt.into_inner())),
         Rule::enum_stmt => Statement::Enum(into_enum(stmt.into_inner())),
         Rule::const_stmt => Statement::Const(into_const(stmt.into_inner())),
+        Rule::feature_stmt => Statement::Feature(into_feature(stmt.into_inner())),
         _ => unreachable!(),
     }
 }
@@ -561,6 +613,9 @@ fn parse_input(input: &str) -> Result<Pairs, PestError> {
             Rule::t_rbracket => "']'".to_owned(),
             Rule::t_rparen => "')'".to_owned(),
             Rule::t_semicolon => "';'".to_owned(),
+            Rule::t_feature => "feature".to_owned(),
+            Rule::t_result => "result".to_owned(),
+            Rule::t_pipe => "'|'".to_owned(),
             _ => format!("{:?}", rule),
         })
     })
@@ -681,6 +736,14 @@ mod tests {
         assert_eq!(
             "[Attr=foo.bar.baz]",
             parse_part(Rule::attribute_section, "[Attr=foo.bar.baz]")
+        );
+        assert_eq!(
+            "[Attr=FeatureA|FeatureB]",
+            parse_part(Rule::attribute_section, "[Attr=FeatureA|FeatureB]")
+        );
+        assert_eq!(
+            "[Attr=FeatureA&FeatureB]",
+            parse_part(Rule::attribute_section, "[Attr=FeatureA&FeatureB]")
         );
     }
 
@@ -819,9 +882,14 @@ mod tests {
         assert_eq!("int8", partial_text(&input, &params[1].typ));
         assert_eq!("int8_arg", partial_text(&input, &params[1].name));
         let response = stmt.response.as_ref().unwrap();
-        assert_eq!(1, response.params.len());
-        assert_eq!("uint32", partial_text(&input, &response.params[0].typ));
-        assert_eq!("result", partial_text(&input, &response.params[0].name));
+        match response {
+            Response::Params(params) => {
+                assert_eq!(1, params.len());
+                assert_eq!("uint32", partial_text(&input, &params[0].typ));
+                assert_eq!("result", partial_text(&input, &params[0].name));
+            }
+            _ => panic!("Expected Params response"),
+        }
 
         let input = "MyMethod2();";
         let parsed = MojomParser::parse(Rule::method_stmt, &input)
@@ -845,7 +913,10 @@ mod tests {
         assert_eq!("int8", partial_text(&input, &params[0].typ));
         assert_eq!("default_int8_arg", partial_text(&input, &params[0].name));
         let response = stmt.response.as_ref().unwrap();
-        assert_eq!(0, response.params.len());
+        match response {
+            Response::Params(params) => assert_eq!(0, params.len()),
+            _ => panic!("Expected Params response"),
+        }
     }
 
     #[test]
@@ -945,6 +1016,40 @@ mod tests {
         assert_eq!("str_field", partial_text(&input, &fields[0].name));
         assert_eq!("pair_field", partial_text(&input, &fields[1].name));
         assert_eq!("int64_field", partial_text(&input, &fields[2].name));
+    }
+
+    #[test]
+    fn test_feature_stmt() {
+        let input = "feature MyFeature {
+            const string kFeatureName = \"my_feature_name\";
+        };";
+        let parsed = MojomParser::parse(Rule::feature_stmt, &input)
+            .unwrap()
+            .next()
+            .unwrap();
+        let stmt = into_feature(parsed.into_inner());
+        assert_eq!("MyFeature", partial_text(&input, &stmt.name));
+        assert_eq!(1, stmt.consts.len());
+        assert_eq!("kFeatureName", partial_text(&input, &stmt.consts[0].name));
+    }
+
+    #[test]
+    fn test_result_response() {
+        let input = "MyMethod() => result<uint32, int32>;";
+        let parsed = MojomParser::parse(Rule::method_stmt, &input)
+            .unwrap()
+            .next()
+            .unwrap();
+        let stmt = into_method(parsed.into_inner());
+        assert_eq!("MyMethod", partial_text(&input, &stmt.name));
+        let response = stmt.response.as_ref().unwrap();
+        match response {
+            Response::Result { success_type, error_type } => {
+                assert_eq!("uint32", partial_text(&input, success_type));
+                assert_eq!("int32", partial_text(&input, error_type));
+            }
+            _ => panic!("Expected Result response"),
+        }
     }
 
     #[test]

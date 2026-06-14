@@ -33,7 +33,8 @@ statement = {
   union_stmt |
   interface |
   enum_stmt |
-  const_stmt
+  const_stmt |
+  feature_stmt
 }
 
 module_stmt = { attribute_section? ~ t_module ~ identifier ~ t_semicolon }
@@ -44,10 +45,11 @@ attribute_section = {
   t_lbracket ~ attribute ~ (t_comma ~ attribute)* ~ t_rbracket
 }
 attribute = {
-  name ~ t_equal ~ identifier |
-  name ~ t_equal ~ literal |
+  name ~ t_equal ~ (pipe_delimited_names | amps_delimited_names | identifier | literal) |
   name
 }
+pipe_delimited_names = { name ~ (t_pipe ~ name)+ }
+amps_delimited_names = { name ~ (t_amp ~ name)+ }
 
 struct_stmt = { attribute_section? ~ t_struct ~ name ~ struct_body? ~ t_semicolon }
 struct_body = { t_lbrace ~ struct_item* ~ t_rbrace }
@@ -58,6 +60,9 @@ struct_item = {
 }
 struct_field = { attribute_section? ~ type_spec ~ name ~ ordinal_value? ~ default? ~ t_semicolon }
 default = { t_equal ~ constant }
+
+t_feature = { "feature" }
+feature_stmt = { attribute_section? ~ t_feature ~ name ~ t_lbrace ~ const_stmt* ~ t_rbrace ~ t_semicolon }
 
 union_stmt = {
   attribute_section? ~
@@ -143,12 +148,14 @@ parameter_list = {
   t_lparen ~ parameter ~ (t_comma ~ parameter)* ~ t_rparen
 }
 parameter = { attribute_section? ~ type_spec ~ name ~ ordinal_value? }
-response = { t_arrow ~ parameter_list }
+response = { t_arrow ~ (result_response | parameter_list) }
+result_response = { t_result ~ t_langlebracket ~ type_spec ~ t_comma ~ type_spec ~ t_ranglebracket }
+t_result = { "result" }
 
 keyword = {
   t_array | t_associated | t_const | t_handle | t_import | t_interface |
-  t_map | t_module | t_struct | t_union | "enum" | "true" | "false" | "default" |
-  "pending_receiver" | "pending_remote"
+  t_map | t_module | t_struct | t_union | t_feature | "enum" | "true" | "false" | "default" |
+  "pending_receiver" | "pending_remote" | "pending_associated_receiver" | "pending_associated_remote"
 }
 
 char = { ASCII_ALPHA | "_" }
@@ -156,7 +163,8 @@ name_part = @{ char ~ (char | ASCII_DIGIT)* }
 keyword_prefixed_name = @{ keyword ~ (char | ASCII_DIGIT)+ }
 name = {
   !keyword ~ name_part |
-  keyword_prefixed_name
+  keyword_prefixed_name |
+  t_feature
 }
 
 literal = { number | "true" | "false" | "default" | string_literal }
@@ -219,3 +227,4 @@ t_rbrace = { "}" }
 t_rbracket = { "]" }
 t_rparen = { ")" }
 t_semicolon = { ";" }
+t_pipe = { "|" }
