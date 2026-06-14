@@ -38,6 +38,9 @@
     },
     {
       "include": "#union"
+    },
+    {
+      "include": "#feature"
     }
   ],
   "repository": {
@@ -127,7 +130,7 @@
         },
         {
           "name": "storage.type.complex.mojom",
-          "match": "\\b(array|map|pending_remote|pending_receiver|pending_associated_remote|pending_associated_receiver|handle|data_pipe_consumer|data_pipe_producer)\\b"
+          "match": "\\b(array|map|pending_remote|pending_receiver|pending_associated_remote|pending_associated_receiver|handle|data_pipe_consumer|data_pipe_producer|result)\\b"
         },
         {
           "name": "meta.generic.mojom",
@@ -373,6 +376,27 @@
         {
           "name": "variable.other.mojom",
           "match": "[._[:alnum:]]+"
+        }
+      ]
+    },
+    "feature": {
+      "name": "meta.feature.mojom",
+      "begin": "(feature)\\s+([_[:alnum:]]+)\\s*{",
+      "beginCaptures": {
+        "1": {
+          "name": "storage.type.mojom"
+        },
+        "2": {
+          "name": "entity.name.type.feature.mojom"
+        }
+      },
+      "end": "}\\s*;",
+      "patterns": [
+        {
+          "include": "#comments"
+        },
+        {
+          "include": "#const_decl"
         }
       ]
     }
