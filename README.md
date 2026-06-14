@@ -1,6 +1,10 @@
 # This is a fork of https://github.com/GoogleChromeLabs/mojom-language-support
 
-So that it can be published on OpenVSX.
+with following changes
+
+* publish to OpenVSX.
+* update mojom grammar in language server and tmLanguage
+* update lsp install in vscode to point to this fork
 
 # Mojom Language Support
 

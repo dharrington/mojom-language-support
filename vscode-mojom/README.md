@@ -4,7 +4,7 @@ Syntax highlighting for [Mojom Interface Definition Language](https://chromium.g
 
 ## Language Server Protocol suport
 
-This extension supports [`mojom-lsp`](https://github.com/GoogleChromeLabs/mojom-language-support/tree/main/mojom-lsp). You need a [Rust toolchain](https://www.rust-lang.org/tools/install) to install `mojom-lsp`.
+This extension supports [`mojom-lsp`](https://github.com/dharrington/mojom-language-support/tree/main/mojom-lsp). You need a [Rust toolchain](https://www.rust-lang.org/tools/install) to install `mojom-lsp`.
 
 ## Contributing
 
