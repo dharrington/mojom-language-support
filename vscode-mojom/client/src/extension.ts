@@ -105,7 +105,7 @@ async function installServerBinary(): Promise<boolean> {
     vscode.workspace.workspaceFolders![0],
     "Installing mojom-lsp",
     "mojom-lsp",
-    new vscode.ShellExecution("cargo install mojom-lsp")
+    new vscode.ShellExecution("cargo install --git https://github.com/dharrington/mojom-language-support mojom-lsp")
   );
   const promise = new Promise<boolean>((resolve) => {
     vscode.tasks.onDidEndTask((e) => {
